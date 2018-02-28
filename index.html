@@ -1,0 +1,646 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<!-- saved from url=(0027)http://www.diep.free.fr/JS/ -->
+<HTML>
+
+<HEAD>
+	<TITLE>Puissance 4 javaScript - par Guy De Oliveira</TITLE>
+	<META http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+	<SCRIPT language=JavaScript type=text/JavaScript>
+<!--
+/*
+function MM_reloadPage(init) {  //reloads the window if Nav4 resized
+  if (init==true) with (navigator) {if ((appName=="Netscape")&&(parseInt(appVersion)==4)) {
+    document.MM_pgW=innerWidth; document.MM_pgH=innerHeight; onresize=MM_reloadPage; }}
+  else if (innerWidth!=document.MM_pgW || innerHeight!=document.MM_pgH) location.reload();
+}
+MM_reloadPage(true);
+*/
+
+
+var Netscape = (navigator.appName.substring(0,8) == "Netscape");
+var NetClicX;
+//alert (Netscape);
+var ANIM = false;
+var GAME = false;
+var Joueur;
+// Joueur2 - Valeurs : Ordi ou Homm
+var Joueur2 = "Ordi"; // autre valeur possible : "Homm"
+// Niveau de difficult� du joueur
+var Niv = 1;
+var CurrentMove = 0;
+var Grille = new Array();
+var Jeton = new Array();
+Jeton['Jaune'] = new Image();
+Jeton['Rouge'] = new Image();
+Jeton['CVIDE'] = new Image();
+
+function Preload() {
+	Jeton['Jaune'].src = "images/jetonjaune.gif";
+	Jeton['Rouge'].src = "images/jetonrouge.gif";
+	Jeton['CVIDE'].src = "images/case.gif";
+}
+
+function StartGame(){
+if (GAME) {
+	document.getElementById("NewGame").value = "Commencer une Partie";
+	document.getElementById("Adv").style.visibility="visible";
+	GAME = false;
+} else {
+	document.getElementById("Adv").style.visibility="hidden";
+//	document.getElementById("EcranDeControle").style.visibility="hidden";
+	document.getElementById("NewGame").value = "Abandonner la Partie";
+	for (c=1;c<=7;c++) {
+		for (l=1;l<=6;l++) {
+			var CaseId = "C"+c+"L"+l;
+			Grille[CaseId] = "VIDE";
+			if (document.getElementById("JetonJaune").style.visibility == "visible") { document.getElementById("JetonJaune").style.visibility="hidden"; }
+			if (document.getElementById("JetonRouge").style.visibility == "visible") { document.getElementById("JetonRouge").style.visibility="hidden"; }
+		    document[CaseId].src = Jeton["CVIDE"].src;
+//		    document[CaseId] = Jeton["CVIDE"];
+		}
+	}
+	CurrentMove = 1;
+	GAME = true;
+	Joueur = 'Jaune';
+//	document.getElementById("Adv").style.visibility="hidden";
+}}
+
+function NextJ(){
+	switch (Joueur) {
+		case "Jaune":
+			Joueur =  "Rouge";
+			if (Joueur2 == "Ordi") { NextMove(); }
+			break;
+		case "Rouge":
+			Joueur = "Jaune";
+			break;
+	}
+}
+
+function JouerPiece(Colonne,Ligne) {
+	var CaseId, cY, dX, dY, nom, calque;
+	nom = 'Jeton'+Joueur;
+	CaseId = 'C'+Colonne+'L'+Ligne;
+	dX = (Colonne+1)*50;
+	dY = (8-Ligne)*50;
+	cY = -50;
+	document.getElementById(nom).style.left = dX;
+	document.getElementById(nom).style.top = 0;
+	document.getElementById(nom).style.visibility="visible";
+
+	move(cY,dY,25,Colonne,Ligne);
+	CurrentMove++;
+	console.log()
+	var pos = "{\"" + Joueur +CurrentMove+ "\":" +Colonne+"."+Ligne+"}";// increment joueur number
+	console.log("pos :"+ pos);
+	const req = new XMLHttpRequest();
+	req.open('GET', "http://127.0.0.1:8000/play/"+pos, false);
+	req.send("salut");
+
+	if (req.status === 200) {
+		console.log("Endroit ou il faut jouer: %s", req.responseText);
+		//var num=10.07;
+		var str = req.responseText;
+		var numarray=str.split('.');
+		var a=new Array();
+		colonneToPlay=numarray[0];
+		lineToPlay = numarray[1];
+	} else {
+	  	console.log("Status de la réponse: %d (%s)", req.status, req.statusText);
+	}
+}
+
+function move(valeurD,valeurF,pas,Col,Lig){
+	if (GAME){
+		ANIM = true; //D�fini si le jeton est en train de tomber :)
+		var Commande;
+		var nomCalque = 'Jeton'+Joueur;
+		var CaseId = 'C'+Col+'L'+Lig;
+		if (valeurD<valeurF){
+			document.getElementById(nomCalque).style.top = valeurD + pas;
+			Commande = 'move(' + (valeurD+pas) + ',' + valeurF + ',' + pas + ',' + Col + ',' + Lig + ');' ;
+//			document.getElementById('Debug').value = Commande;
+			setTimeout(Commande,20);
+		} else {
+//			if (document.getElementById(nomCalque).style.visibility == "visible") { document.getElementById(nomCalque).style.visibility="hidden"; }
+		    if (document[CaseId]) { document[CaseId].src = Jeton[Joueur].src; }
+//		    if (document[CaseId]) { document[CaseId] = Jeton[Joueur]; }
+			Grille[CaseId] = Joueur;
+			if (TestVictoire(Col,Lig,Joueur,4)){
+				if (Joueur2=="Ordi") {
+					switch (Joueur) {
+						case "Rouge":
+							alert("L'ordinateur vous a lamentablement battu!\n LOL MDR! Pas mal hein :) :p!")
+							break;
+						case "Jaune":
+							alert("Vous avez �crabouill� l'artificiel!\n Rien de mieux que l'esprit humain!")
+							learn(Col, Lig);// faire apprendre l'IA
+							break;
+						default:
+							alert("error")
+							break;
+					}
+					GAME = false;
+				} else { 
+					alert("Le Joueur aux pions "+Joueur+" viens de gagner!\n Bravo!!!"); GAME = false; 
+				}
+			} else {
+				if (GAME&(CurrentMove > 42)) { alert('Matche Null!\nPersonne n\'a gagn� la partie!'); GAME = false; }
+			}
+// 			alert(CaseId); // Lignes de Debuggage
+			if (!GAME) {
+				document.getElementById("Adv").style.visibility="visible"; 
+				document.getElementById("NewGame").value = "Commencer une Partie";
+			}
+			ANIM = false;
+			NextJ();
+		}
+	}
+}
+
+function TestVictoire(Col,Lig,Couleur,Longueur){
+	var FinTest = false;
+	var VALEUR=false;
+	align = 1;
+	sc = 1; sl = 0;
+	while (!FinTest) {
+		for (i=1;i<Longueur;i++) {
+			if ( TestCase( Col+(sc*i) , Lig+(sl*i) , Couleur ) ) { align++; }
+			else { i=Longueur-1; }
+		}
+		if (align <Longueur) {
+			switch (sc+" "+sl) {
+				case ("1 0"): // Ligne vers la droite
+					sc = -1; sl = 0;
+					break;
+				case ("-1 0"): // Ligne vers la gauche
+					sc = 1; sl = 1; align = 1;
+					break; 
+				case ("1 1"): // Diagonale vers haut droite
+					sc = -1; sl = -1;
+					break;
+				case ("-1 -1"): // Diagonale vers bas gauche
+					sc = 1; sl = -1; align = 1;
+					break;
+				case ("1 -1"): // Diagonale vers bas droite
+					sc = -1; sl = 1;
+					break;
+				case ("-1 1"): // Diagonale vers haut gauche
+					sc = 0; sl = -1; align = 1;
+					break;
+				case ("0 -1"): // Colonne : Que vers le bas car les pions viennent d'en haut :) On ne peut donc pas faire de ligne verticale en rajoutant une piece en dessous... :D
+					FinTest = true;
+					break;
+			}
+		} else { FinTest = true; VALEUR=true; }
+	}
+	return VALEUR;
+}
+
+function TestCase(Col,Lig,Couleur){
+	if ((Col > 0)&(Lig > 0)&(Col < 8)&(Lig < 7)) {
+		var CaseId = 'C'+Col+'L'+Lig;
+		if (Grille[CaseId]==Couleur) { return true; }
+//		else if (Grille[CaseId]=="VIDE") { return 0; }
+		else { return false; }
+	} else { return false; }
+}
+
+function MyTestCase(Col,Lig){
+	if ((Col > 0)&(Lig > 0)&(Col < 8)&(Lig < 7)) {
+		var CaseId = 'C'+Col+'L'+Lig;
+		if (Grille[CaseId]=="VIDE") { return true; }
+//		else if (Grille[CaseId]=="VIDE") { return 0; }
+		else { return false; }
+	} else { return false; }
+}
+
+function LigneLibre(Col) {
+	var Find = false;
+	var Ligne;
+	for (l=1;l<7;l++) {
+		if ( ( Find == false ) && (Grille["C"+Col+"L"+l] == "VIDE") ) {
+//			alert (Grille["C"+Col+"L"+l]);
+			Find = true;
+			Ligne = l;
+			break;
+		}
+	}
+//	alert Ligne;
+	if (Find) {
+		return Ligne;	
+	} else {
+		if (!((Joueur2 == "Ordi")&&(Joueur == "Rouge"))) { alert('Vous ne pouvez plus jouer sur la colonne '+Col+' \nVeuillez faire un autre choix SVP.'); }
+		return false;
+	}
+}
+
+function ColonneLibre() {
+	var Find = false;
+	var Colonne;
+	for (c=1;c<7;c++) {
+		for (l=1;l<7;l++) {
+			if ( ( Find == false ) && (Grille["C"+c+"L"+l] == "VIDE") ) {
+				Find = true;
+				Colonne = c;
+				break;
+			}
+		}
+		if(Find)
+			break;
+	}
+
+	if (Find) {
+		return Colonne;	
+	} else {
+		if (!((Joueur2 == "Ordi")&&(Joueur == "Rouge"))) { alert('Vous ne pouvez plus jouer sur la colonne '+Colonne+' \nVeuillez faire un autre choix SVP.'); }
+		return false;
+	}
+}
+
+//-->
+/*
+// Nouveau coup par ordinateur...
+function NextMove(Col,Tab,Niv){
+	NextMove(Col,Tab,Niv);
+	if () {}
+}
+*/
+
+function NextMove(){
+	if (GAME&!ANIM) {
+		var Col
+		var Ligne = false;
+		var RdmPlay = true;
+
+		var colonneToPlay = 0;
+		var lineToPlay = 0;
+
+		// appeler le serveur en lui donnant en paramètre les éléments de la grille
+		const req = new XMLHttpRequest();
+		req.open('GET', 'http://127.0.0.1:8000/', false); 
+		req.send("salut");
+
+		if (req.status === 200) {
+			console.log("Endroit ou il faut jouer: %s", req.responseText);
+			//var num=10.07;
+			var str = req.responseText;
+			var numarray=str.split('.');
+			var a=new Array();
+			colonneToPlay=numarray[0];
+			lineToPlay = numarray[1];
+		} else {
+	    console.log("Status de la réponse: %d (%s)", req.status, req.statusText);
+		}
+
+		lineToPlay = LigneLibre(colonneToPlay);
+		if(lineToPlay){
+			 JouerPiece(colonneToPlay ,lineToPlay);
+		}
+		else{
+			// jouer sur position aleatoire
+			colonneToPlay = ColonneLibre();
+			lineToPlay = LigneLibre(colonneToPlay);
+			JouerPiece(colonneToPlay ,lineToPlay);
+		}
+
+	}
+//	alert("�a passe...");
+}
+
+
+
+function SwapAdversaire() {
+	if (!GAME) {
+		switch (Joueur2) {
+			case "Homm":
+				Joueur2 = "Ordi";
+				document.getElementById('AdvAct').value = "Adversaire actuel : Humain";
+				break;
+			case "Ordi":
+				Joueur2 = "Homm";
+				document.getElementById('ChAdv').value = "Adversaire actuel : Ordinateur";
+				break;
+		}
+	}
+}
+	
+// Permet de r�cup�rer les coordonn�es du clic sous Netscape sans trop changer le code adapt� � IE
+function Position(e){
+	if (Netscape) {
+		if (e.pageX>99&&e.pageX<451&&e.pageY<400){
+			NetClicX = e.pageX+2;
+			document.getElementById("Debug").value = e.pageX+" : "+e.pageY;
+			ClicColonne();
+		}
+	}
+}
+document.onmousedown = Position;
+
+function learn(col, lig){
+	var position = {}
+	const req = new XMLHttpRequest();
+		req.open('GET', 'http://127.0.0.1:8000/learn/'+col+"."+lig, false); 
+		req.send("salut");
+
+		if (req.status === 200) {
+			console.log("Endroit ou il faut jouer: %s", req.responseText);
+			//var num=10.07;
+			var str = req.responseText;
+			var numarray=str.split('.');
+			var a=new Array();
+			colonneToPlay=numarray[0];
+			lineToPlay = numarray[1];
+		} else {
+	    console.log("Status de la réponse: %d (%s)", req.status, req.statusText);
+		}	
+}
+
+// function DebugPosNS(e){
+//	document.getElementById('Debug').value = e.screenX;
+// }
+document.getElementById("Debug").style.visibility="visible";
+// document.captureEvents(Event.MOUSEMOVE);
+// document.onmousemove = DebugPosNS;
+
+</SCRIPT>
+
+	<META content="MSHTML 6.00.2800.1226" name=GENERATOR>
+</HEAD>
+
+<BODY bgcolor="#CCCCCC" onload="Preload()">
+	<DIV id=EcranDeControle style="Z-INDEX: 3; LEFT: 500px; WIDTH: 250px; POSITION: absolute; TOP: 100px; HEIGHT: 300px">
+		<div align="center">
+			<table width="250" height="300" border="2" cellpadding="2" cellspacing="0" bgcolor="#FFFFFF">
+				<tr>
+					<td align="center" valign="top">
+						<div align="center">
+							<strong>
+								<font size="5" face="Georgia, Times New Roman, Times, serif">Puissance 4
+									<br>
+									<font size="2">par Guy De Oliveira
+										<br> 199188, MST2, Paris8
+										<br>
+										<br>
+										<br>
+										<input name="NewGame" type="submit" id="NewGame" value="Commencer une Partie" onClick=StartGame()>
+										<br>
+										<div id='Adv' style="Z-INDEX: 4; LEFT: 0px; WIDTH: 250px; POSITION: absolute; TOP: 122px; HEIGHT: 50px; overflow: visible;">
+											<form name=Adversaire>
+												Choisissez votre Adversaire:
+												<br>
+												<input name="adversaire" type="radio" value="Homm" checked onclick='Joueur2="Ordi"'> l'ordinateur
+												<br>
+												<input name="adversaire" type="radio" value="Ordi" onclick='Joueur2="Homm"'> une autre pesonne
+												<br>
+											</form>
+										</div>
+										<br>
+										<br>
+										<br>
+										<br>
+										<br>
+										<br>
+									</font>
+								</font>
+							</strong>
+						</div>
+					</td>
+				</tr>
+				<tr>
+					<td align="center" valign="bottom">
+						<p>
+							<strong>
+								<font size="5" face="Georgia, Times New Roman, Times, serif">
+									<font size="2">
+										<br>
+									</font>
+								</font>
+							</strong>
+							<font size="5" face="Georgia, Times New Roman, Times, serif">
+								<font size="2">
+									<font size="5" face="Georgia, Times New Roman, Times, serif">
+										<font size="1" face="Arial, Helvetica, sans-serif">Niveau de difficult&eacute; : Moyenne
+											<br> Version 1.02
+											<br> Date de Cr&eacute;ation :</font>
+									</font>
+								</font>
+							</font>
+							<font size="5" face="Georgia, Times New Roman, Times, serif">
+								<font size="2">
+									<font size="5" face="Georgia, Times New Roman, Times, serif">
+										<font size="1" face="Arial, Helvetica, sans-serif"> 02/2004
+											<br> Derni&egrave;re Mise &agrave; Jour : 02/2005
+											<br> Jeu compatible avec la plupart des Navigateurs.</font>
+									</font>
+								</font>
+							</font>
+						</p>
+					</td>
+				</tr>
+			</table>
+		</div>
+	</DIV>
+	<SCRIPT language=JavaScript type=text/JavaScript>
+
+function ClicColonne(){
+	if ((Joueur2 == "Ordi")&&(Joueur == "Rouge")) { } else {
+		if (GAME&&!ANIM) {
+//			alert(GAME+" "+ANIM);
+			var Col;
+			if (Netscape) {	var clicX=NetClicX;	} else { var clicX=event.x; }
+//			alert("ClicX="+clicX);
+//			alert("clic");
+			if (parseInt((clicX/50)-1)>=7){
+				Col = 7;
+			} else {
+				Col = parseInt((clicX/50)-1);
+			}
+			var Ligne = LigneLibre(Col);
+			if (Ligne) { JouerPiece(Col,Ligne); }
+		}
+	}
+}
+</SCRIPT>
+
+	<DIV id=TableauDeJeu style="Z-INDEX: 2; LEFT: 100px; WIDTH: 350px; POSITION: absolute; TOP: 100px; HEIGHT: 300px">
+		<TABLE onmousedown="if(!Netscape) ClicColonne();" height=300 cellSpacing=0 cellPadding=0 width=350 background=images/case.gif
+		 border=0 id='PlayZone'>
+			<TBODY>
+				<TR>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C1L6>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C2L6>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C3L6>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C4L6>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C5L6>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C6L6>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C7L6>
+					</TD>
+				</TR>
+				<TR>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C1L5>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C2L5>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C3L5>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C4L5>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C5L5>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C6L5>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C7L5>
+					</TD>
+				</TR>
+				<TR>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C1L4>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C2L4>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C3L4>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C4L4>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C5L4>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C6L4>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C7L4>
+					</TD>
+				</TR>
+				<TR>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C1L3>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C2L3>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C3L3>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C4L3>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C5L3>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C6L3>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C7L3>
+					</TD>
+				</TR>
+				<TR>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C1L2>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C2L2>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C3L2>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C4L2>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C5L2>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C6L2>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C7L2>
+					</TD>
+				</TR>
+				<TR>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C1L1>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C2L1>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C3L1>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C4L1>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C5L1>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C6L1>
+					</TD>
+					<TD width=50 height=50>
+						<IMG height=50 src="images/case.gif" width=50 name=C7L1>
+					</TD>
+				</TR>
+			</TBODY>
+		</TABLE>
+	</DIV>
+	<DIV id=Debug style="Z-INDEX: 2; LEFT: 43px; WIDTH: 200px; POSITION: absolute; TOP: 411px; HEIGHT: 75px; visibility: hidden;">
+		<P>
+			<A href="javascript:StartGame()">StartTest</A>
+			<BR>
+			<INPUT id=Debug name=Debug>
+		</P>
+		<P>
+			<A href="javascript:SwapAdversaire()">Adversaire (Ordi/Joueur)</A>
+			<br>
+			<!--
+            <SCRIPT LANGUAGE=JavaScript1.1>
+function ShowValues(){
+	document.write('<table width="175" height="150" border="0" cellpadding="0" cellspacing="0" onclick="ShowValues()">');
+	for (l=5;l>=0;l--) {
+		document.write('<tr align="center" valign="middle">');
+		for (c=0;c<7;c++) {
+			var CaseId = "C"+(c+1)+"L"+(l+1);
+			document.write('<td width="25" height="25">'+Grille[CaseId]+'</td>');
+		}
+		document.write('</tr>');
+	}
+	document.write('</table>');
+}	
+</SCRIPT>
+-->
+		</P>
+	</DIV>
+	<DIV id=JetonJaune style="Z-INDEX: 1; LEFT: 100px; WIDTH: 50px; POSITION: absolute; TOP: -50px; HEIGHT: 50px">
+		<IMG height=50 src="images/jetonjaune.gif" width=50>
+	</DIV>
+	<DIV id=JetonRouge style="Z-INDEX: 1; LEFT: 100px; VISIBILITY: hidden; WIDTH: 50px; POSITION: absolute; TOP: -50px; HEIGHT: 50px">
+		<IMG height=50 src="images/jetonrouge.gif" width=50>
+	</DIV>
+</BODY>
+
+</HTML>

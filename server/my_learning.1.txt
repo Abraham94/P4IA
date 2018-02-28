@@ -1,0 +1,1 @@
+[{"input":{"Jaune2":6.1,"Jaune4":5.1,"Jaune6":7.1},"output":{"4.1":1}}]
