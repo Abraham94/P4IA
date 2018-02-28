@@ -11,6 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "babel-cli": "^6.26.0",
-    "brain.js": "^1.0.5"
+    "brain.js": "^1.0.5",
+    "express": "^4.16.2"
   }
 }
